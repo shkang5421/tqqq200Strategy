@@ -32,32 +32,26 @@ def get_trading_signal():
     qqq_ma_table = "\n".join([f"{name.ljust(6)}: ${val:>8.2f}" for name, val in qqq_mas.items()])
     
     # 전략 판단 (QQQ 200일선 기준 추세 필터 + TQQQ 액션)
-    qqq_curr = qqq_close.iloc[-1]
-    qqq_ma200 = qqq_mas['200일선']
-    qqq_ma200_plus_5 = qqq_ma200 * 1.05
+    qqq_curr_val = qqq_close.iloc[-1]
+    qqq_ma200_val = qqq_mas['200일선']
+    qqq_ma200_plus_5 = qqq_ma200_val * 1.05
     
-    if qqq_curr < qqq_ma200:
+    if qqq_curr_val < qqq_ma200_val:
         action, detail = "🚨 전량 매도 / SGOV 매수", "QQQ가 200일선 아래입니다. 리스크 관리 모드!"
-    elif qqq_ma200 <= qqq_curr <= qqq_ma200_plus_5:
+    elif qqq_ma200_val <= qqq_curr_val <= qqq_ma200_plus_5:
         action, detail = "🚀 TQQQ 풀매수 / 유지", "상승 추세 구간입니다. 전략대로 보유하세요."
     else:
         action, detail = "🔥 TQQQ 유지 / SPYM 추가 매수", "과열 구간입니다. 신규 자금은 SPYM으로!"
 
+    # 문자열을 한 번에 선언 (SyntaxError 방지)
     report = (
         f"📊 **나스닥(QQQ) 현황 리포트**\n"
         f"```\n"
-        f"[QQQ 현재가] : ${qqq_curr:.2f}\n"
+        f"[QQQ 현재가] : ${qqq_curr_val:.2f}\n"
         f"[QQQ RSI]    : {qqq_rsi:.2f}\n\n"
         f"[주요 이동평균선]\n"
         f"{qqq_ma_table}\n"
         f"```\n"
         f"📈 **TQQQ 매수·매도 전략 리포트**\n"
         f"━━━━━━━━━━━━━━━\n"
-        f"• **TQQQ 현재가:** `${tqqq_curr:.2f}`\n"
-        f"• **TQQQ RSI(14):** `{tqqq_rsi:.2f}`\n"
-        f"• **TQQQ 200일선:** `${tqqq_ma200:.2f}`\n\n"
-        f"**💡 오늘의 행동 지침:**\n"
-        f"**{action}**\n"
-        f"_{detail}_\n"
-        f"━━━━━━━━━━━━━━━\n"
-        f"⚠️ *수
+        f
