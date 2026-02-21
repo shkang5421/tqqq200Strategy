@@ -43,7 +43,7 @@ def get_trading_signal():
     else:
         action, detail = "🔥 TQQQ 유지 / SPYM 추가 매수", "과열 구간입니다. 신규 자금은 SPYM으로!"
 
-    # 문자열을 한 번에 선언 (SyntaxError 방지)
+    # 리포트 문자열 생성
     report = (
         f"📊 **나스닥(QQQ) 현황 리포트**\n"
         f"```\n"
@@ -54,4 +54,23 @@ def get_trading_signal():
         f"```\n"
         f"📈 **TQQQ 매수·매도 전략 리포트**\n"
         f"━━━━━━━━━━━━━━━\n"
-        f
+        f"• **TQQQ 현재가:** `${tqqq_curr:.2f}`\n"
+        f"• **TQQQ RSI(14):** `{tqqq_rsi:.2f}`\n"
+        f"• **TQQQ 200일선:** `${tqqq_ma200:.2f}`\n\n"
+        f"**💡 오늘의 행동 지침:**\n"
+        f"**{action}**\n"
+        f"_{detail}_\n"
+        f"━━━━━━━━━━━━━━━\n"
+        f"⚠️ *수익률별 계단식 익절 원칙 준수 필수!*"
+    )
+
+    # 3. TQQQ 전용 차트 생성
+    plt.figure(figsize=(10, 6))
+    
+    tqqq_recent = tqqq_close.tail(150)
+    t_sma200_recent = ta.sma(tqqq_close, length=200).tail(150)
+    t_envelope_upper = t_sma200_recent * 1.05 
+
+    plt.plot(tqqq_recent.index, tqqq_recent, label='TQQQ Price', color='#00cf95', linewidth=2)
+    plt.plot(t_sma200_recent.index, t_sma200_recent, label='TQQQ 200MA', color='#f39c12', linestyle='--')
+    plt
