@@ -10,29 +10,34 @@ import pytz
 
 def get_trading_signal():
     print("1. 환경 설정 및 데이터 다운로드 시작...")
-    # 한국 시간 설정
     kst = pytz.timezone('Asia/Seoul')
     now_str = datetime.now(kst).strftime('%Y-%m-%d %H:%M:%S')
 
     tickers = ['QQQ', 'TQQQ']
     try:
-        # 충분한 이동평균선 계산을 위해 400일치 데이터 다운로드
-        data = yf.download(tickers, period='400d', interval='1d', auto_adjust=True)
-        if data.empty:
-            print("❌ 에러: Yahoo Finance에서 데이터를 가져오지 못했습니다.")
+        # 데이터 누락 방지를 위해 넉넉하게 500일치 다운로드
+        data = yf.download(tickers, period='500d', interval='1d', auto_adjust=True)
+        
+        # 멀티 인덱스 정리
+        if isinstance(data.columns, pd.MultiIndex):
+            data.columns = [f"{col[0]}_{col[1]}" for col in data.columns]
+        
+        # 데이터가 비어있는 행(주말 등) 제거하여 nan 방지
+        data = data.dropna()
+        
+        if data.empty or len(data) < 200:
+            print("❌ 에러: 계산 가능한 충분한 데이터가 없습니다.")
             return None, None
+            
     except Exception as e:
-        print(f"❌ 데이터 다운로드 중 예외 발생: {e}")
+        print(f"❌ 데이터 처리 중 예외 발생: {e}")
         return None, None
-
-    if isinstance(data.columns, pd.MultiIndex):
-        data.columns = [f"{col[0]}_{col[1]}" for col in data.columns]
 
     print("2. 기술적 지표 계산 중...")
     qqq_close = data['Close_QQQ']
     tqqq_close = data['Close_TQQQ']
     
-    # QQQ 이평선 및 RSI
+    # QQQ 지표
     ma_intervals = [5, 20, 50, 100, 200]
     qqq_mas = {f"{i}일선": ta.sma(qqq_close, length=i).iloc[-1] for i in ma_intervals}
     qqq_rsi = ta.rsi(qqq_close, length=14).iloc[-1]
@@ -43,14 +48,13 @@ def get_trading_signal():
     tqqq_ma200_plus_5 = tqqq_ma200 * 1.05
     tqqq_rsi = ta.rsi(tqqq_close, length=14).iloc[-1]
     
-    # 전략 판단용 변수
+    # 전략 판단
     qqq_curr_val = qqq_close.iloc[-1]
     qqq_ma200_val = qqq_mas['200일선']
-    qqq_ma200_plus_5_val = qqq_ma200_val * 1.05
     
     if qqq_curr_val < qqq_ma200_val:
         action, detail = "🚨 전량 매도 / SGOV 매수", "QQQ가 200일선 아래입니다. 리스크 관리 모드!"
-    elif qqq_ma200_val <= qqq_curr_val <= qqq_ma200_plus_5_val:
+    elif qqq_ma200_val <= qqq_curr_val <= (qqq_ma200_val * 1.05):
         action, detail = "🚀 TQQQ 풀매수 / 유지", "상승 추세 구간입니다. 전략대로 보유하세요."
     else:
         action, detail = "🔥 TQQQ 유지 / SPYM 추가 매수", "과열 구간입니다. 신규 자금은 SPYM으로!"
@@ -79,7 +83,7 @@ def get_trading_signal():
         f"⚠️ *수익률별 계단식 익절 원칙 준수 필수!*"
     )
 
-    print("3. 차트 시각화 이미지 생성 중...")
+    print("3. 차트 생성 중...")
     plt.figure(figsize=(10, 6))
     tqqq_recent = tqqq_close.tail(150)
     t_sma200_recent = ta.sma(tqqq_close, length=200).tail(150)
@@ -102,34 +106,18 @@ def get_trading_signal():
     return report, img_buffer
 
 def send_to_discord(msg, img_buffer):
-    print("4. 디스코드 API 전송 시도...")
     webhook_url = os.environ.get('DISCORD_WEBHOOK')
-    if not webhook_url:
-        print("❌ 에러: DISCORD_WEBHOOK 환경변수를 찾을 수 없습니다.")
-        return
+    if not webhook_url: return
 
     try:
         payload = {"content": msg}
-        img_buffer.seek(0)
         files = {"file": ("chart.png", img_buffer, "image/png")}
-        
-        response = requests.post(webhook_url, data=payload, files=files)
-        
-        if response.status_code in [200, 204]:
-            print(f"✅ 디스코드 전송 성공! (응답 코드: {response.status_code})")
-        else:
-            print(f"❌ 디스코드 전송 실패 (응답 코드: {response.status_code})")
-            print(f"상세 응답: {response.text}")
+        requests.post(webhook_url, data=payload, files=files)
+        print("✅ 전송 완료!")
     except Exception as e:
-        print(f"❌ 전송 중 예외 발생: {e}")
+        print(f"❌ 전송 에러: {e}")
 
 if __name__ == "__main__":
-    print("🚀 TQQQ 전략 스크립트 가동")
     report_text, chart_img = get_trading_signal()
-    if report_text and chart_img:
+    if report_text:
         send_to_discord(report_text, chart_img)
-    else:
-        print("❌ 실행 중단: 데이터 생성 단계에서 문제가 발생했습니다.")
-    print("🏁 스크립트 실행 종료")
-
-# --- END OF CODE ---
