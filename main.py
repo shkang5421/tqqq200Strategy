@@ -31,7 +31,7 @@ def get_trading_signal():
     # 2. 텍스트 리포트 구성
     qqq_ma_table = "\n".join([f"{name.ljust(6)}: ${val:>8.2f}" for name, val in qqq_mas.items()])
     
-    # 전략 판단 (QQQ 200일선 기준 추세 필터 + TQQQ 액션)
+    # 전략 판단
     qqq_curr_val = qqq_close.iloc[-1]
     qqq_ma200_val = qqq_mas['200일선']
     qqq_ma200_plus_5 = qqq_ma200_val * 1.05
@@ -43,7 +43,6 @@ def get_trading_signal():
     else:
         action, detail = "🔥 TQQQ 유지 / SPYM 추가 매수", "과열 구간입니다. 신규 자금은 SPYM으로!"
 
-    # 리포트 문자열 생성
     report = (
         f"📊 **나스닥(QQQ) 현황 리포트**\n"
         f"```\n"
@@ -66,11 +65,45 @@ def get_trading_signal():
 
     # 3. TQQQ 전용 차트 생성
     plt.figure(figsize=(10, 6))
-    
     tqqq_recent = tqqq_close.tail(150)
     t_sma200_recent = ta.sma(tqqq_close, length=200).tail(150)
     t_envelope_upper = t_sma200_recent * 1.05 
 
     plt.plot(tqqq_recent.index, tqqq_recent, label='TQQQ Price', color='#00cf95', linewidth=2)
     plt.plot(t_sma200_recent.index, t_sma200_recent, label='TQQQ 200MA', color='#f39c12', linestyle='--')
-    plt
+    plt.plot(t_envelope_upper.index, t_envelope_upper, label='Env +5%', color='#ff4757', linestyle=':', alpha=0.8)
+    plt.fill_between(t_sma200_recent.index, t_sma200_recent, t_envelope_upper, color='#1dd1a1', alpha=0.1)
+    
+    plt.title('TQQQ Price vs 200-Day Moving Average & Env +5%', fontsize=14)
+    plt.legend(loc='upper left')
+    plt.grid(True, alpha=0.15)
+    
+    img_buffer = BytesIO()
+    plt.savefig(img_buffer, format='png', bbox_inches='tight')
+    img_buffer.seek(0)
+    plt.close()
+
+    return report, img_buffer
+
+def send_to_discord(msg, img_buffer):
+    webhook_url = os.environ.get('DISCORD_WEBHOOK')
+    if not webhook_url:
+        print("Webhook URL not found.")
+        return
+
+    # 파일과 텍스트를 분리해서 보내는 가장 안전한 방식
+    try:
+        # 1. 먼저 텍스트 메시지 전송
+        requests.post(webhook_url, json={"content": msg})
+        
+        # 2. 이미지 파일 전송
+        img_buffer.seek(0)
+        files = {"file": ("chart.png", img_buffer, "image/png")}
+        requests.post(webhook_url, files=files)
+        print("전송 완료!")
+    except Exception as e:
+        print(f"전송 중 오류 발생: {e}")
+
+if __name__ == "__main__":
+    text, img = get_trading_signal()
+    send_to_discord(text, img)
