@@ -2,11 +2,10 @@ name: TQQQ_Daily_Alert
 
 on:
   schedule:
-    # 한국 시간(KST) 오전 6시 30분 = UTC 오후 9시 30분 (21:30)
-    # 서머타임 해제 기준(겨울): 장 마감 06:00 -> 06:30 알림
-    # 서머타임 적용 기준(여름): 장 마감 05:00 -> 06:30 알림 (여유 있게 확인 가능)
+    # UTC 21:30 = 한국 시간(KST) 오전 6시 30분
+    # 월요일부터 금요일까지(미국 장 운영 기준) 매일 아침 실행
     - cron: '30 21 * * *'
-  workflow_dispatch:
+  workflow_dispatch: # 버튼을 눌러 수동으로 즉시 실행 가능
 
 jobs:
   build:
@@ -18,13 +17,12 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.12' # 3.12 버전 이상이어야 에러가 안 납니다.
+          python-version: '3.12'
 
       - name: Install dependencies
-        # 이 부분이 수정되었습니다! matplotlib가 추가되었어요.
         run: |
           python -m pip install --upgrade pip
-          pip install yfinance pandas_ta requests pandas matplotlib
+          pip install yfinance pandas_ta requests pandas matplotlib pytz
 
       - name: Run script
         env:
