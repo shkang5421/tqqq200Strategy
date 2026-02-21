@@ -2,8 +2,11 @@ name: TQQQ_Daily_Alert
 
 on:
   schedule:
-    - cron: '0 23 * * *' # 한국 시간 오전 8시
-  workflow_dispatch: # 수동 실행 버튼
+    # 한국 시간(KST) 오전 6시 30분 = UTC 오후 9시 30분 (21:30)
+    # 서머타임 해제 기준(겨울): 장 마감 06:00 -> 06:30 알림
+    # 서머타임 적용 기준(여름): 장 마감 05:00 -> 06:30 알림 (여유 있게 확인 가능)
+    - cron: '30 21 * * *'
+  workflow_dispatch:
 
 jobs:
   build:
