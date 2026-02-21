@@ -26,12 +26,13 @@ def get_trading_signal():
     # TQQQ 지표 계산
     tqqq_curr = tqqq_close.iloc[-1]
     tqqq_ma200 = ta.sma(tqqq_close, length=200).iloc[-1]
+    tqqq_ma200_plus_5 = tqqq_ma200 * 1.05
     tqqq_rsi = ta.rsi(tqqq_close, length=14).iloc[-1]
     
     # 2. 텍스트 리포트 구성
     qqq_ma_table = "\n".join([f"{name.ljust(6)}: ${val:>8.2f}" for name, val in qqq_mas.items()])
     
-    # 전략 판단
+    # 전략 판단 (QQQ 200일선 기준 추세 필터)
     qqq_curr_val = qqq_close.iloc[-1]
     qqq_ma200_val = qqq_mas['200일선']
     qqq_ma200_plus_5 = qqq_ma200_val * 1.05
@@ -55,7 +56,8 @@ def get_trading_signal():
         f"━━━━━━━━━━━━━━━\n"
         f"• **TQQQ 현재가:** `${tqqq_curr:.2f}`\n"
         f"• **TQQQ RSI(14):** `{tqqq_rsi:.2f}`\n"
-        f"• **TQQQ 200일선:** `${tqqq_ma200:.2f}`\n\n"
+        f"• **TQQQ 200일선:** `${tqqq_ma200:.2f}`\n"
+        f"• **엔벨로프(+5%):** `${tqqq_ma200_plus_5:.2f}` (과열 기준선)\n\n"
         f"**💡 오늘의 행동 지침:**\n"
         f"**{action}**\n"
         f"_{detail}_\n"
@@ -91,19 +93,10 @@ def send_to_discord(msg, img_buffer):
         print("Webhook URL not found.")
         return
 
-    # 파일과 텍스트를 분리해서 보내는 가장 안전한 방식
     try:
-        # 1. 먼저 텍스트 메시지 전송
+        # 1. 텍스트 메시지 전송
         requests.post(webhook_url, json={"content": msg})
         
         # 2. 이미지 파일 전송
         img_buffer.seek(0)
-        files = {"file": ("chart.png", img_buffer, "image/png")}
-        requests.post(webhook_url, files=files)
-        print("전송 완료!")
-    except Exception as e:
-        print(f"전송 중 오류 발생: {e}")
-
-if __name__ == "__main__":
-    text, img = get_trading_signal()
-    send_to_discord(text, img)
+        files = {"file": ("chart.png",
